@@ -97,7 +97,7 @@ class AvatarService {
         // Cache the assignment
         this.avatarCache.set(username, avatarPath);
         
-        console.log(`🎭 Assigned avatar "${selectedAvatar}" to user "${username}"`);
+        // console.log(`🎭 Assigned avatar "${selectedAvatar}" to user "${username}"`);
         return avatarPath;
     }
 

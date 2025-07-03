@@ -50,6 +50,31 @@ class ArchiveExplorer {
         }
         
         console.log(`📊 Loading: ${percentage}% - ${message}`);
+        
+        // Also update app loading overlay
+        this.updateAppLoadingProgress(message, percentage);
+    }
+    
+    /**
+     * Update app loading overlay progress
+     */
+    updateAppLoadingProgress(message, percentage) {
+        const appLoadingStatus = document.getElementById('appLoadingStatus');
+        
+        if (appLoadingStatus) appLoadingStatus.textContent = message;
+    }
+    
+    /**
+     * Hide app loading overlay with fade animation
+     */
+    hideAppLoadingOverlay() {
+        const overlay = document.getElementById('appLoadingOverlay');
+        if (overlay) {
+            overlay.classList.add('fade-out');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 500); // Match CSS transition duration
+        }
     }
 
     /**
@@ -96,7 +121,8 @@ class ArchiveExplorer {
             // Another small delay before hiding loader
             await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Hide loading screen and show app
+            // Hide both loading screens and show app
+            this.hideAppLoadingOverlay();
             this.elements.loadingScreen.style.display = 'none';
             this.elements.app.style.display = 'block';
             
@@ -1070,7 +1096,6 @@ class ArchiveExplorer {
             exportAllPostsComments: 'exportAllPostsComments',
             commentInsights: 'commentInsights',
             wordCloud: 'wordCloud',
-            likedWords: 'likedWords',
         };
 
         this.elements = {};
@@ -1960,10 +1985,6 @@ class ArchiveExplorer {
             const wordFreq = this.analyzeWordFrequency(flatComments);
             this.renderAnalyticsWordCloud(wordFreq);
             
-            // Load liked words
-            const likedWords = this.analyzeLikedCommentWords(flatComments);
-            this.renderAnalyticsLikedWords(likedWords);
-            
             // Load themes analysis (renamed to sentiment)
             const themesData = this.analyzeThemes(flatComments);
             this.renderThemesAnalysis(themesData);
@@ -2001,34 +2022,6 @@ class ArchiveExplorer {
         container.innerHTML = html;
     }
     
-    /**
-     * Render liked words in analytics panel
-     */
-    renderAnalyticsLikedWords(likedWords) {
-        const container = document.getElementById('analyticsLikedWords');
-        if (!container) return;
-        
-        if (likedWords.length === 0) {
-            container.innerHTML = '<div class="text-muted">No liked word data available</div>';
-            return;
-        }
-        
-        const html = likedWords.slice(0, 12).map(({ word, avgLikes, count }, index) => {
-            // Determine size based on position (like word cloud)
-            let sizeClass = 'size-3'; // default
-            if (index === 0) sizeClass = 'size-5';
-            else if (index === 1) sizeClass = 'size-4';
-            else if (index < 4) sizeClass = 'size-3';
-            else if (index < 8) sizeClass = 'size-2';
-            else sizeClass = 'size-1';
-            
-            return `<span class="analytics-word-item ${sizeClass}" title="Average ${Math.round(avgLikes)} likes in ${count} comments">
-                ${word}<span class="word-count">${Math.round(avgLikes)}</span>
-            </span>`;
-        }).join('');
-        
-        container.innerHTML = html;
-    }
     
     
     /**
@@ -2241,9 +2234,30 @@ class ArchiveExplorer {
         if (!this.currentVideo) return;
 
         try {
+            // Get frequent words for relevance scoring
+            console.log('📊 Starting word frequency analysis...');
+            const allCommentsForWordAnalysis = await this.dataManager.getAllComments(this.currentVideo.video_id, { sortBy: 'newest' });
+            console.log(`📊 Analyzing ${allCommentsForWordAnalysis.length} comments for word frequency`);
+            
+            const frequentWords = this.analyzeWordFrequency(allCommentsForWordAnalysis);
+            console.log('🔤 FREQUENT WORDS ANALYSIS COMPLETE:');
+            console.log('🔤 Top 15 frequent words:', frequentWords.slice(0, 15).map(w => `${w.word}(${w.count})`));
+            
+            // Also log the words we expect to see
+            const expectedWords = ['urine', 'people', 'red', 'about', 'dont', 'from', 'body', 'drink'];
+            expectedWords.forEach(word => {
+                const found = frequentWords.find(w => w.word.toLowerCase() === word);
+                if (found) {
+                    console.log(`✅ Found expected word: ${word} (${found.count} times)`);
+                } else {
+                    console.log(`❌ Missing expected word: ${word}`);
+                }
+            });
+            
             const filters = {
                 search: this.elements.commentSearch?.value || '',
-                sortBy: this.elements.commentSort?.value || 'likes-desc'
+                sortBy: this.elements.commentSort?.value || 'relevance',
+                frequentWords: frequentWords
             };
             
             console.log(`Loading comments for ${this.currentVideo.video_id}...`);
@@ -2389,8 +2403,7 @@ class ArchiveExplorer {
     createCommentCard(comment) {
         const avatarColor = this.exportService.generateAvatarColor(comment.author);
         const firstLetter = comment.author[1]?.toUpperCase() || comment.author[0]?.toUpperCase() || 'U';
-        const date = new Date(comment.published_at).toLocaleDateString();
-        const likes = this.formatNumber(comment.like_count);
+        const date = this.formatFullDate(comment.published_at);
         const heartIcon = comment.channel_owner_liked ? '❤️' : '';
         
         let html = `
@@ -2410,12 +2423,6 @@ class ArchiveExplorer {
                     </button>
                 </div>
                 <div class="comment-text">${this.escapeHTML(comment.text)}</div>
-                <div class="comment-actions">
-                    <div class="comment-likes">
-                        <i class="bi bi-hand-thumbs-up"></i> ${likes}
-                        ${heartIcon ? `<span class="channel-owner-liked ms-2">${heartIcon}</span>` : ''}
-                    </div>
-                </div>
             </div>
         `;
         
@@ -2430,7 +2437,7 @@ class ArchiveExplorer {
                             </div>
                             <div>
                                 <div class="comment-author">${this.escapeHTML(reply.author)}</div>
-                                <div class="comment-date">${new Date(reply.published_at).toLocaleDateString()}</div>
+                                <div class="comment-date">${this.formatFullDate(reply.published_at)}</div>
                             </div>
                         </div>
                         <button class="btn btn-outline-primary btn-sm export-btn" data-comment-id="${reply.comment_id}">
@@ -2438,12 +2445,6 @@ class ArchiveExplorer {
                         </button>
                     </div>
                     <div class="comment-text">${this.escapeHTML(reply.text)}</div>
-                    <div class="comment-actions">
-                        <div class="comment-likes">
-                            <i class="bi bi-hand-thumbs-up"></i> ${this.formatNumber(reply.like_count)}
-                            ${reply.channel_owner_liked ? `<span class="channel-owner-liked ms-2">❤️</span>` : ''}
-                        </div>
-                    </div>
                 </div>
             `).join('');
             
@@ -3050,7 +3051,6 @@ class ArchiveExplorer {
             if (preComputed.word_cloud.length > 0) {
                 // Use pre-computed data for instant loading
                 this.renderWordCloud(preComputed.word_cloud);
-                this.renderLikedWords(preComputed.liked_words);
                 this.renderMiniWordCloud(preComputed.word_cloud.slice(0, 7)); // Show top 7 words in mini cloud
                 this.elements.commentInsights.style.display = 'block';
                 return;
@@ -3067,11 +3067,8 @@ class ArchiveExplorer {
 
             // Generate word frequency analysis
             const wordFreq = this.analyzeWordFrequency(flatComments);
-            const likedWords = this.analyzeLikedCommentWords(flatComments);
-
             // Update UI
             this.renderWordCloud(wordFreq);
-            this.renderLikedWords(likedWords);
             this.renderMiniWordCloud(wordFreq.slice(0, 7)); // Show top 7 words in mini cloud
             
             // Load themes analysis (so it updates between posts)
@@ -3097,12 +3094,12 @@ class ArchiveExplorer {
             'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
             'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their',
             'what', 'which', 'who', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each',
-            'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+            'few', 'more', 'most', 'some', 'such', 'no', 'nor', 'only', 'own',
             'same', 'so', 'than', 'too', 'very', 's', 't', 're', 've', 'll', 'd', 'just', 'now',
-            'also', 'back', 'still', 'well', 'get', 'go', 'know', 'like', 'see', 'think', 'want',
-            'really', 'way', 'right', 'good', 'great', 'much', 'many', 'new', 'first', 'last',
-            'long', 'little', 'own', 'other', 'old', 'right', 'big', 'high', 'different', 'small',
-            'large', 'next', 'early', 'young', 'important', 'few', 'public', 'bad', 'same', 'able'
+            'also', 'back', 'still', 'well', 'get', 'go', 'know', 'see', 'think', 'want',
+            'really', 'way', 'new', 'first', 'last',
+            'long', 'little', 'high', 'different', 'small',
+            'large', 'next', 'early', 'young', 'important', 'few', 'public', 'same', 'able'
         ]);
 
         const wordCounts = {};
@@ -3126,39 +3123,6 @@ class ArchiveExplorer {
             .map(([word, count]) => ({ word, count }));
     }
 
-    /**
-     * Analyze words in comments (Instagram comments don't have like counts)
-     */
-    analyzeLikedCommentWords(comments) {
-        // Since Instagram comments don't have like counts, analyze by word frequency
-        // Take a sample of comments for performance (top 500 if there are many)
-        const sampleComments = comments.slice(0, 500);
-
-        const wordFrequency = {};
-
-        sampleComments.forEach(comment => {
-            const text = comment.text || comment.content || '';
-            const words = text.toLowerCase()
-                .replace(/[^\w\s]/g, '')
-                .split(/\s+/)
-                .filter(word => word.length > 3 && !this.isStopWord(word));
-
-            words.forEach(word => {
-                wordFrequency[word] = (wordFrequency[word] || 0) + 1;
-            });
-        });
-
-        // Return top words by frequency (simulating "most liked" with most common)
-        return Object.entries(wordFrequency)
-            .map(([word, count]) => ({
-                word,
-                avgLikes: count, // Use frequency as proxy for "likes"
-                count: count
-            }))
-            .filter(item => item.count >= 2) // Must appear in at least 2 comments
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 15);
-    }
 
     /**
      * Check if word is a common stop word
@@ -3188,24 +3152,6 @@ class ArchiveExplorer {
         this.elements.wordCloud.innerHTML = html;
     }
 
-    /**
-     * Render liked words analysis
-     */
-    renderLikedWords(likedWords) {
-        if (likedWords.length === 0) {
-            this.elements.likedWords.innerHTML = '<p class="text-muted text-center">No liked comment data available</p>';
-            return;
-        }
-
-        const html = likedWords.map(({ word, avgLikes, count }) => {
-            const roundedAvgLikes = Math.round(avgLikes);
-            return `<span class="liked-word" title="Average ${roundedAvgLikes} likes in ${count} comments">
-                ${word} <span class="count">${roundedAvgLikes}</span>
-            </span>`;
-        }).join('');
-
-        this.elements.likedWords.innerHTML = html;
-    }
 
     /**
      * Render mini word cloud above analytics button
@@ -3311,8 +3257,6 @@ class ArchiveExplorer {
 
         if (tabName === 'wordcloud') {
             document.getElementById('wordCloudTab').style.display = 'block';
-        } else if (tabName === 'liked') {
-            document.getElementById('likedWordsTab').style.display = 'block';
         }
     }
 
@@ -3372,6 +3316,54 @@ class ArchiveExplorer {
         if (text.length <= maxLength) return text;
         return text.substr(0, maxLength) + '...';
     }
+    
+    /**
+     * Format date to YYYY/MM/DD HH:MM format
+     */
+    formatFullDate(dateStr) {
+        const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            console.warn('Invalid date:', dateStr);
+            return '2024/01/01 12:00'; // Default fallback
+        }
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${year}/${month}/${day} ${hours}:${minutes}`;
+    }
+    
+    /**
+     * Calculate relevance score for a comment based on frequent words
+     */
+    calculateRelevanceScore(comment, frequentWords) {
+        if (!frequentWords || frequentWords.length === 0) {
+            return 0;
+        }
+        
+        const text = (comment.text || comment.content || '').toLowerCase();
+        const words = text.replace(/[^\w\s]/g, '').split(/\s+/);
+        
+        let score = 0;
+        const frequentWordSet = new Set(frequentWords.slice(0, 20).map(w => w.word.toLowerCase()));
+        
+        words.forEach(word => {
+            if (frequentWordSet.has(word)) {
+                // Weight by position in frequent words list (higher for more frequent words)
+                const wordObj = frequentWords.find(w => w.word.toLowerCase() === word);
+                if (wordObj) {
+                    score += wordObj.count;
+                }
+            }
+        });
+        
+        return score;
+    }
 
     /**
      * SPIE: Setup hardcoded post data
@@ -3387,7 +3379,7 @@ class ArchiveExplorer {
             description: 'What is URINE Therapy?! 😱',
             published_at: '2024-12-27T10:55:15Z',
             view_count: 31222,
-            like_count: 5649,
+            like_count: 31222,
             comment_count: 0, // Will be set from loaded comments
             author: 'jonno.otto',
             username: 'jonno.otto',

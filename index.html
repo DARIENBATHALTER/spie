@@ -60,6 +60,18 @@
     </script>
 </head>
 <body>
+    <!-- Loading Overlay -->
+    <div id="appLoadingOverlay" class="app-loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner">
+                <div class="loader"></div>
+            </div>
+            <h3 class="loading-title">SPIE</h3>
+            <p class="loading-subtitle">Single Post Instagram Explorer</p>
+            <p id="appLoadingStatus" class="loading-status">Initializing...</p>
+        </div>
+    </div>
+
     <!-- Header -->
     <div class="titlebar">
         <div class="titlebar-content">
@@ -433,9 +445,6 @@
                                         <button class="analytics-tab active" data-tab="frequent">
                                             <i class="bi bi-cloud"></i> Frequent
                                         </button>
-                                        <button class="analytics-tab" data-tab="liked">
-                                            <i class="bi bi-heart"></i> Liked
-                                        </button>
                                         <button class="analytics-tab" data-tab="themes">
                                             <i class="bi bi-emoji-smile"></i> Sentiment
                                         </button>
@@ -450,15 +459,6 @@
                                                 <small class="text-muted">Top words mentioned in comments</small>
                                             </div>
                                             <div id="analyticsWordCloud" class="analytics-word-cloud"></div>
-                                        </div>
-                                        
-                                        <!-- Liked Words Tab -->
-                                        <div id="likedTab" class="tab-pane">
-                                            <div class="tab-header">
-                                                <h6>Most Liked Words</h6>
-                                                <small class="text-muted">Words from comments with the most likes - each word scores points based on the likes of comments it appears in</small>
-                                            </div>
-                                            <div id="analyticsLikedWords" class="analytics-liked-words"></div>
                                         </div>
                                         
                                         <!-- Themes Tab (renamed to Sentiment) -->
@@ -507,10 +507,9 @@
                                         </div>
                                         <div class="mt-2">
                                             <select id="commentSort" class="form-select form-select-sm">
+                                                <option value="relevance">Most Relevant</option>
                                                 <option value="newest">Newest</option>
                                                 <option value="oldest">Oldest</option>
-                                                <option value="likes-desc">Most Liked</option>
-                                                <option value="likes-asc">Least Liked</option>
                                             </select>
                                         </div>
                                     </div>
@@ -561,9 +560,6 @@
                         <div class="insights-tabs mb-3">
                             <button class="btn btn-sm btn-outline-secondary active" data-tab="wordcloud">
                                 <i class="bi bi-cloud"></i> Word Cloud
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary ms-2" data-tab="liked">
-                                <i class="bi bi-heart"></i> Most Liked
                             </button>
                         </div>
                         
@@ -859,13 +855,6 @@
                         </div>
                     </div>
                     
-                    <!-- Most Liked Comments -->
-                    <div class="analytics-section mb-4">
-                        <h6 class="fw-bold mb-3">Most Liked Comments</h6>
-                        <div id="topComments" class="top-comments-section">
-                            <!-- Top comments will be populated here -->
-                        </div>
-                    </div>
                     
                     <!-- Recommended Video Ideas -->
                     <div class="analytics-section">

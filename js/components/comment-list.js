@@ -99,39 +99,26 @@ class CommentListComponent {
         const avatarColor = window.avatarService.generateAvatarColor(comment.author);
         const firstLetter = comment.author[0]?.toUpperCase() || 'U';
         
-        // Format date to show time ago (e.g., "2d", "1w", "3mo")
-        const formatTimeAgo = (dateStr) => {
+        // Format date to YYYY/MM/DD HH:MM format
+        const formatFullDate = (dateStr) => {
             const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
             
             // Check if date is valid
             if (isNaN(date.getTime())) {
                 console.warn('Invalid date:', dateStr);
-                return '1d'; // Default fallback
+                return '2024/01/01 12:00'; // Default fallback
             }
             
-            const now = new Date();
-            const diffMs = now - date;
-            const diffSecs = Math.floor(diffMs / 1000);
-            const diffMins = Math.floor(diffSecs / 60);
-            const diffHours = Math.floor(diffMins / 60);
-            const diffDays = Math.floor(diffHours / 24);
-            const diffWeeks = Math.floor(diffDays / 7);
-            const diffMonths = Math.floor(diffDays / 30);
-            const diffYears = Math.floor(diffDays / 365);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
             
-            if (diffYears > 0) return diffYears + 'y';
-            if (diffMonths > 0) return diffMonths + 'mo';
-            if (diffWeeks > 0) return diffWeeks + 'w';
-            if (diffDays > 0) return diffDays + 'd';
-            if (diffHours > 0) return diffHours + 'h';
-            if (diffMins > 0) return diffMins + 'm';
-            if (diffSecs > 0) return 'just now';
-            return '1d'; // For any future dates or edge cases
+            return `${year}/${month}/${day} ${hours}:${minutes}`;
         };
         
-        const timeAgo = formatTimeAgo(comment.published_at || comment.commentAt);
-        const likes = comment.like_count || comment.reactionsCount || 0;
-        const likesText = likes > 0 ? `${this.formatNumber(likes)} ${likes === 1 ? 'like' : 'likes'}` : '';
+        const fullDate = formatFullDate(comment.published_at || comment.commentAt);
         const heartIcon = comment.channel_owner_liked ? '❤️' : '';
         
         const cardClass = isReply ? 'reply-card comment-card' : 'comment-card';
@@ -180,8 +167,7 @@ class CommentListComponent {
                         ${this.highlightText(this.escapeHTML(comment.text || comment.content))}
                     </div>
                     <div class="comment-actions">
-                        <span class="comment-date">${timeAgo}</span>
-                        ${likesText ? `<span class="comment-likes">${likesText}</span>` : ''}
+                        <span class="comment-date">${fullDate}</span>
                         ${heartIcon ? `<span class="channel-owner-liked">${heartIcon}</span>` : ''}
                     </div>
                 </div>

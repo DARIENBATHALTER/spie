@@ -746,32 +746,24 @@ class ExportService {
     }
 
     /**
-     * Format date to show time ago (Instagram style)
+     * Format date to YYYY/MM/DD HH:MM format
      */
     formatTimeAgo(dateStr) {
         const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
         
+        // Check if date is valid
         if (isNaN(date.getTime())) {
-            return '1d';
+            console.warn('Invalid date:', dateStr);
+            return '2024/01/01 12:00'; // Default fallback
         }
         
-        const now = new Date();
-        const diffMs = now - date;
-        const diffSecs = Math.floor(diffMs / 1000);
-        const diffMins = Math.floor(diffSecs / 60);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-        const diffWeeks = Math.floor(diffDays / 7);
-        const diffMonths = Math.floor(diffDays / 30);
-        const diffYears = Math.floor(diffDays / 365);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
         
-        if (diffYears > 0) return diffYears + 'y';
-        if (diffMonths > 0) return diffMonths + 'mo';
-        if (diffWeeks > 0) return diffWeeks + 'w';
-        if (diffDays > 0) return diffDays + 'd';
-        if (diffHours > 0) return diffHours + 'h';
-        if (diffMins > 0) return diffMins + 'm';
-        return 'just now';
+        return `${year}/${month}/${day} ${hours}:${minutes}`;
     }
 
     /**
