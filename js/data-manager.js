@@ -809,7 +809,7 @@ class DataManager {
         }
 
         // Apply sorting
-        const sortBy = filters.sortBy || 'relevance';
+        const sortBy = filters.sortBy || 'newest';
         videoComments.sort((a, b) => {
             switch (sortBy) {
                 case 'relevance':
@@ -904,7 +904,7 @@ class DataManager {
         }
 
         // Apply sorting
-        const sortBy = filters.sortBy || 'relevance';
+        const sortBy = filters.sortBy || 'newest';
         videoComments.sort((a, b) => {
             switch (sortBy) {
                 case 'relevance':

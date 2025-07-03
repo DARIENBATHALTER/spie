@@ -2315,7 +2315,7 @@ class ArchiveExplorer {
         }));
         
         // Don't re-sort - preserve the sort order from data manager
-        const currentSort = document.getElementById('commentSort')?.value || 'relevance';
+        const currentSort = document.getElementById('commentSort')?.value || 'newest';
         // Comments are already sorted by the data manager, no need to re-sort here
         
         const topLevelComments = [];
