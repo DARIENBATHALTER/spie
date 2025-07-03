@@ -175,7 +175,7 @@ class CommentListComponent {
                     <button class="export-btn" 
                             data-comment-id="${comment.comment_id}"
                             title="Export this comment as PNG"
-                            style="display: none;">
+                            style="display: none !important;">
                         <i class="bi bi-download"></i>
                     </button>
                 </div>

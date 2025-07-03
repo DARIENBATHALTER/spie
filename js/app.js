@@ -2411,7 +2411,7 @@ class ArchiveExplorer {
                             <div class="comment-date">${date}</div>
                         </div>
                     </div>
-                    <button class="btn btn-outline-primary btn-sm export-btn" data-comment-id="${comment.comment_id}" style="display: none;">
+                    <button class="btn btn-outline-primary btn-sm export-btn" data-comment-id="${comment.comment_id}" style="display: none !important;">
                         <i class="bi bi-download"></i>
                     </button>
                 </div>
@@ -2433,7 +2433,7 @@ class ArchiveExplorer {
                                 <div class="comment-date">${this.formatFullDate(reply.published_at)}</div>
                             </div>
                         </div>
-                        <button class="btn btn-outline-primary btn-sm export-btn" data-comment-id="${reply.comment_id}" style="display: none;">
+                        <button class="btn btn-outline-primary btn-sm export-btn" data-comment-id="${reply.comment_id}" style="display: none !important;">
                             <i class="bi bi-download"></i>
                         </button>
                     </div>
