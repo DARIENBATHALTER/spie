@@ -1964,11 +1964,7 @@ class ArchiveExplorer {
             const likedWords = this.analyzeLikedCommentWords(flatComments);
             this.renderAnalyticsLikedWords(likedWords);
             
-            // Load sentiment analysis
-            const sentimentData = this.analyzeSentiment(flatComments);
-            this.renderSentimentAnalysis(sentimentData);
-            
-            // Load themes analysis
+            // Load themes analysis (renamed to sentiment)
             const themesData = this.analyzeThemes(flatComments);
             this.renderThemesAnalysis(themesData);
             
@@ -2034,174 +2030,6 @@ class ArchiveExplorer {
         container.innerHTML = html;
     }
     
-    /**
-     * Analyze comment sentiment - URINE THERAPY SPECIFIC
-     */
-    analyzeSentiment(comments) {
-        const sentiments = {
-            grateful_supportive: { 
-                count: 0, 
-                patterns: [
-                    /\b(thank|thanks|grateful|bless|amen|halleluja|love|amazing|great|beautiful)\b/i,
-                    /\b(well said|right|correct|exactly|absolutely|agree|true)\b/i,
-                    /\b(keep|continue|spread|awareness|light)\b/i,
-                    /👏|🙏|❤️|💜|💙|🙌/
-                ]
-            },
-            genuine_questions: { 
-                count: 0, 
-                patterns: [
-                    /\b(how|what|when|where|which|why)\b.*\?/i,
-                    /\b(recommend|suggest|advice|help|guide)\b/i,
-                    /\b(cleanse|parasite|cure|heal|treatment|protocol)\b.*\?/i,
-                    /\b(safe|side effects|doctor|medical)\b.*\?/i
-                ]
-            },
-            personal_testimony: { 
-                count: 0, 
-                patterns: [
-                    /\b(i|my|me)\b.*\b(tried|did|experience|worked|helped|cured|healed|better|improved|saved)\b/i,
-                    /\b(urine therapy)\b.*\b(saved|helped|cured|healed|life)\b/i,
-                    /\b(menopause|cancer|psoriasis|autism)\b.*\b(helped|cured|healed|better)\b/i
-                ]
-            },
-            curiosity_shock: { 
-                count: 0, 
-                patterns: [
-                    /\b(wow|omg|unbelievable|insane|crazy)\b/i,
-                    /😱|😮|🤔|😲/,
-                    /\b(knowledge|learn|interesting|fascinating)\b/i
-                ]
-            },
-            skeptical_concern: { 
-                count: 0, 
-                patterns: [
-                    /\b(toxic|dangerous|suspicious|fake|scam|bullshit|bs|ridiculous|stupid|nonsense)\b/i,
-                    /\b(disgusting|gross|eww|yuck)\b/i,
-                    /\b(mad|confused|why)\b/i
-                ]
-            },
-            simple_engagement: { 
-                count: 0, 
-                patterns: [
-                    /^(yes|no|true|ok|good|nice|cool)$/i,
-                    /^[👏🙌❤️💜💙😍🔥]+$/,
-                    /^\w{1,3}$/ // Very short responses
-                ]
-            }
-        };
-        
-        // Count unique comments for each sentiment category using pattern matching
-        const commentsSentiments = new Set();
-        comments.forEach(comment => {
-            const text = comment.content || comment.text || '';
-            const commentId = comment.id || Math.random();
-            
-            // Track which sentiment this comment matches (only count once per comment)
-            let sentimentFound = false;
-            
-            // Check in order of priority to avoid double-counting
-            const sentimentOrder = ['personal_testimony', 'genuine_questions', 'skeptical_concern', 'grateful_supportive', 'curiosity_shock', 'simple_engagement'];
-            
-            for (const sentiment of sentimentOrder) {
-                if (!sentimentFound) {
-                    for (const pattern of sentiments[sentiment].patterns) {
-                        if (pattern.test(text)) {
-                            sentiments[sentiment].count++;
-                            commentsSentiments.add(commentId);
-                            sentimentFound = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Calculate totals and ensure they add up to 100%
-        const totalCategorized = Object.values(sentiments).reduce((sum, s) => sum + s.count, 0);
-        const totalComments = comments.length;
-        const uncategorized = totalComments - totalCategorized;
-        
-        // Calculate percentages
-        const percentages = {
-            grateful_supportive: Math.round((sentiments.grateful_supportive.count / totalComments) * 100),
-            genuine_questions: Math.round((sentiments.genuine_questions.count / totalComments) * 100),
-            personal_testimony: Math.round((sentiments.personal_testimony.count / totalComments) * 100),
-            curiosity_shock: Math.round((sentiments.curiosity_shock.count / totalComments) * 100),
-            skeptical_concern: Math.round((sentiments.skeptical_concern.count / totalComments) * 100),
-            simple_engagement: Math.round((sentiments.simple_engagement.count / totalComments) * 100),
-            uncategorized: Math.round((uncategorized / totalComments) * 100)
-        };
-        
-        // Ensure percentages add up to 100% by adjusting the largest category
-        const total = Object.values(percentages).reduce((sum, p) => sum + p, 0);
-        if (total !== 100) {
-            const diff = 100 - total;
-            const largestCategory = Object.keys(percentages).reduce((a, b) => percentages[a] > percentages[b] ? a : b);
-            percentages[largestCategory] += diff;
-        }
-        
-        return percentages;
-    }
-    
-    /**
-     * Render sentiment analysis
-     */
-    renderSentimentAnalysis(sentimentData) {
-        const container = document.getElementById('sentimentAnalysis');
-        if (!container) return;
-        
-        const html = `
-            <div class="sentiment-grid">
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('grateful_supportive')">
-                    <span class="sentiment-emoji">🙏</span>
-                    <div class="sentiment-label">Grateful & Supportive</div>
-                    <div class="sentiment-percentage">${sentimentData.grateful_supportive}%</div>
-                    <div class="sentiment-desc">Thankful, praising, agreeing</div>
-                </div>
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('genuine_questions')">
-                    <span class="sentiment-emoji">❓</span>
-                    <div class="sentiment-label">Genuine Questions</div>
-                    <div class="sentiment-percentage">${sentimentData.genuine_questions}%</div>
-                    <div class="sentiment-desc">Asking for help & guidance</div>
-                </div>
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('personal_testimony')">
-                    <span class="sentiment-emoji">📝</span>
-                    <div class="sentiment-label">Personal Testimony</div>
-                    <div class="sentiment-percentage">${sentimentData.personal_testimony}%</div>
-                    <div class="sentiment-desc">Sharing healing experiences</div>
-                </div>
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('curiosity_shock')">
-                    <span class="sentiment-emoji">😮</span>
-                    <div class="sentiment-label">Curiosity & Shock</div>
-                    <div class="sentiment-percentage">${sentimentData.curiosity_shock}%</div>
-                    <div class="sentiment-desc">Surprised, intrigued, learning</div>
-                </div>
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('skeptical_concern')">
-                    <span class="sentiment-emoji">🤔</span>
-                    <div class="sentiment-label">Skeptical & Concerned</div>
-                    <div class="sentiment-percentage">${sentimentData.skeptical_concern}%</div>
-                    <div class="sentiment-desc">Doubting, worried, critical</div>
-                </div>
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('simple_engagement')">
-                    <span class="sentiment-emoji">👍</span>
-                    <div class="sentiment-label">Simple Engagement</div>
-                    <div class="sentiment-percentage">${sentimentData.simple_engagement}%</div>
-                    <div class="sentiment-desc">Brief reactions & emojis</div>
-                </div>
-                ${sentimentData.uncategorized > 0 ? `
-                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('uncategorized')">
-                    <span class="sentiment-emoji">💬</span>
-                    <div class="sentiment-label">Other</div>
-                    <div class="sentiment-percentage">${sentimentData.uncategorized}%</div>
-                    <div class="sentiment-desc">Unclassified comments</div>
-                </div>
-                ` : ''}
-            </div>
-        `;
-        
-        container.innerHTML = html;
-    }
     
     /**
      * Analyze themes - URINE THERAPY SPECIFIC
@@ -2257,22 +2085,25 @@ class ArchiveExplorer {
         }
         
         const html = themesData.slice(0, 6).map(theme => {
-            const descriptions = {
-                'Podcast Requests': 'People commenting "listen" to request podcast episodes',
-                'Preorder Requests': 'People commenting "preorder" for book preorders',
-                'Recipe Requests': 'People commenting "recipe" for recipe requests',
-                'DMs Sent': 'Medical Medium responding with DM notifications',
-                'Information Requests': 'Common single-word requests for specific information',
-                'Health Questions': 'Questions about dosages, safety, and usage',
-                'Success Stories': 'Positive healing experiences and results',
-                'Gratitude': 'Expressions of thanks and appreciation'
+            const themeInfo = {
+                'Safety Concerns': { emoji: '⚠️', description: 'Questions about risks and safety' },
+                'How-To Questions': { emoji: '❓', description: 'Asking for instructions and guidance' },
+                'Medical Skepticism': { emoji: '🤔', description: 'Doubting medical claims and evidence' },
+                'Personal Success Stories': { emoji: '✨', description: 'Sharing positive healing experiences' },
+                'Cultural/Religious References': { emoji: '🙏', description: 'Traditional and spiritual perspectives' },
+                'Comparison to Other Therapies': { emoji: '⚖️', description: 'Comparing with alternative treatments' },
+                'Extreme Reactions': { emoji: '😱', description: 'Strong emotional responses' },
+                'Health Conditions Mentioned': { emoji: '🏥', description: 'Specific ailments and diseases discussed' }
             };
+            
+            const info = themeInfo[theme.name] || { emoji: '💬', description: 'Related discussion topics' };
             
             return `
                 <div class="theme-item">
+                    <span class="theme-emoji">${info.emoji}</span>
                     <span class="theme-count">${theme.count}</span>
                     <div class="theme-title">${theme.name}</div>
-                    <div class="theme-description">${descriptions[theme.name] || 'Related discussion topics'}</div>
+                    <div class="theme-description">${info.description}</div>
                 </div>
             `;
         }).join('');

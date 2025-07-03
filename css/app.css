@@ -1731,6 +1731,12 @@ body {
     color: #6c757d;
 }
 
+.theme-emoji {
+    font-size: 16px;
+    margin-right: 8px;
+    display: inline-block;
+}
+
 .theme-count {
     background: #dc2743;
     color: white;
