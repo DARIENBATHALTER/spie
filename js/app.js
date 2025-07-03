@@ -2314,16 +2314,9 @@ class ArchiveExplorer {
             replies: comment.replies ? [...comment.replies] : []
         }));
         
-        // Only sort by timestamp if we're not using relevance sorting
+        // Don't re-sort - preserve the sort order from data manager
         const currentSort = document.getElementById('commentSort')?.value || 'relevance';
-        if (currentSort !== 'relevance') {
-            // Sort comments by timestamp to ensure proper chronological order
-            commentsCopy.sort((a, b) => {
-                const timeA = new Date(a.published_at || a.created_at || 0).getTime();
-                const timeB = new Date(b.published_at || b.created_at || 0).getTime();
-                return timeA - timeB;
-            });
-        }
+        // Comments are already sorted by the data manager, no need to re-sort here
         
         const topLevelComments = [];
         const allReplies = [];
@@ -2389,14 +2382,8 @@ class ArchiveExplorer {
             }
         });
         
-        // Third pass: sort top-level comments back to original order (only if not using relevance sorting)
-        if (currentSort !== 'relevance') {
-            topLevelComments.sort((a, b) => {
-                const timeA = new Date(a.published_at || a.created_at || 0).getTime();
-                const timeB = new Date(b.published_at || b.created_at || 0).getTime();
-                return timeA - timeB;
-            });
-        }
+        // Don't re-sort - preserve the sort order from data manager
+        // The data manager has already applied the correct sorting (newest, oldest, relevance, etc.)
         
         console.log(`✅ Comment tree built: ${topLevelComments.length} top-level comments with nested replies`);
         
