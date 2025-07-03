@@ -796,6 +796,16 @@ class DataManager {
         }
 
         // Apply filters
+        
+        // Filter out top-level comments from the post author (jonno.otto)
+        videoComments = videoComments.filter(comment => {
+            // Keep replies from the author, but filter out top-level comments
+            if (comment.author === 'jonno.otto' && !comment.is_reply) {
+                return false;
+            }
+            return true;
+        });
+        
         if (filters.search) {
             const searchLower = filters.search.toLowerCase();
             videoComments = videoComments.filter(comment => 
@@ -891,6 +901,16 @@ class DataManager {
         }
 
         // Apply filters (same as getComments but no pagination)
+        
+        // Filter out top-level comments from the post author (jonno.otto)
+        videoComments = videoComments.filter(comment => {
+            // Keep replies from the author, but filter out top-level comments
+            if (comment.author === 'jonno.otto' && !comment.is_reply) {
+                return false;
+            }
+            return true;
+        });
+        
         if (filters.search) {
             const searchLower = filters.search.toLowerCase();
             videoComments = videoComments.filter(comment => 
