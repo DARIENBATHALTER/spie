@@ -1325,9 +1325,26 @@ class DataManager {
             }
         });
         
+        // Apply length penalty to prevent very long comments from dominating
+        const wordCount = words.length;
+        let lengthPenalty = 1.0;
+        
+        if (wordCount > 50) {
+            // Significant penalty for very long comments (>50 words)
+            lengthPenalty = 0.5;
+        } else if (wordCount > 30) {
+            // Moderate penalty for long comments (30-50 words)
+            lengthPenalty = 0.7;
+        } else if (wordCount > 15) {
+            // Light penalty for medium-length comments (15-30 words)
+            lengthPenalty = 0.9;
+        }
+        
+        score = score * lengthPenalty;
+        
         // Log high scoring comments for debugging
         if (score > 50) {
-            console.log(`💯 High relevance comment (score: ${score}):`, text.substring(0, 100), '...', 'Matched words:', matchedWords.join(', '));
+            console.log(`💯 High relevance comment (score: ${score.toFixed(1)}, length: ${wordCount} words, penalty: ${lengthPenalty}):`, text.substring(0, 100), '...', 'Matched words:', matchedWords.join(', '));
         }
         
         // Also log a few random low-scoring comments to verify the algorithm
