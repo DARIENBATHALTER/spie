@@ -815,9 +815,21 @@ class DataManager {
                 case 'relevance':
                     // Calculate relevance scores on demand
                     const frequentWords = filters.frequentWords || [];
-                    console.log('🔍 Relevance sorting with', frequentWords.length, 'frequent words');
+                    if (frequentWords.length === 0) {
+                        console.log('⚠️ No frequent words provided for relevance sorting, falling back to newest');
+                        const dateBFallback = new Date(b.published_at || b.created_at || 0).getTime();
+                        const dateAFallback = new Date(a.published_at || a.created_at || 0).getTime();
+                        return dateBFallback - dateAFallback; // Newest first
+                    }
+                    
                     const scoreA = this.calculateCommentRelevance(a, frequentWords);
                     const scoreB = this.calculateCommentRelevance(b, frequentWords);
+                    
+                    // Debug the first few comparisons
+                    if (Math.random() < 0.01) { // Log 1% of comparisons to avoid spam
+                        console.log(`🔍 Relevance comparison: "${a.text?.substring(0, 50)}..." (score: ${scoreA}) vs "${b.text?.substring(0, 50)}..." (score: ${scoreB})`);
+                    }
+                    
                     if (scoreB !== scoreA) {
                         return scoreB - scoreA; // Higher score first
                     }
@@ -898,6 +910,12 @@ class DataManager {
                 case 'relevance':
                     // Calculate relevance scores on demand
                     const frequentWords2 = filters.frequentWords || [];
+                    if (frequentWords2.length === 0) {
+                        const dateBFallback2 = new Date(b.published_at || b.created_at || 0).getTime();
+                        const dateAFallback2 = new Date(a.published_at || a.created_at || 0).getTime();
+                        return dateBFallback2 - dateAFallback2; // Newest first
+                    }
+                    
                     const scoreA2 = this.calculateCommentRelevance(a, frequentWords2);
                     const scoreB2 = this.calculateCommentRelevance(b, frequentWords2);
                     if (scoreB2 !== scoreA2) {
@@ -1294,6 +1312,7 @@ class DataManager {
         
         let score = 0;
         const frequentWordSet = new Set(frequentWords.slice(0, 20).map(w => w.word.toLowerCase()));
+        const matchedWords = [];
         
         words.forEach(word => {
             if (frequentWordSet.has(word)) {
@@ -1301,13 +1320,19 @@ class DataManager {
                 const wordObj = frequentWords.find(w => w.word.toLowerCase() === word);
                 if (wordObj) {
                     score += wordObj.count;
+                    matchedWords.push(`${word}(+${wordObj.count})`);
                 }
             }
         });
         
         // Log high scoring comments for debugging
-        if (score > 100) {
-            console.log(`💯 High relevance comment (score: ${score}):`, text.substring(0, 100), '...');
+        if (score > 50) {
+            console.log(`💯 High relevance comment (score: ${score}):`, text.substring(0, 100), '...', 'Matched words:', matchedWords.join(', '));
+        }
+        
+        // Also log a few random low-scoring comments to verify the algorithm
+        if (score === 0 && Math.random() < 0.005) {
+            console.log(`🔍 Zero-score comment:`, text.substring(0, 100), '...');
         }
         
         return score;
