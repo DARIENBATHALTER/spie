@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MM Instagram Archive Explorer</title>
+    <title>SPIE - Single Post Instagram Explorer</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23E4405F'%3E%3Cpath d='M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z'/%3E%3C/svg%3E">
     
     <!-- Bootstrap CSS -->
@@ -35,6 +35,29 @@
     <link rel="stylesheet" href="css/app.css">
     <link rel="stylesheet" href="css/video-player.css">
     <link rel="stylesheet" href="css/directory-modal.css">
+    
+    <!-- Embedded Comments Data -->
+    <script src="comments-data.js"></script>
+    
+    <!-- Early Loading Progress Script -->
+    <script>
+        // Update loading progress immediately when page starts
+        function updateEarlyProgress(message, percentage) {
+            const loadingStatus = document.getElementById('loadingStatus');
+            const loadingProgress = document.getElementById('loadingProgress');
+            
+            if (loadingStatus) loadingStatus.textContent = message;
+            if (loadingProgress) {
+                loadingProgress.style.width = percentage + '%';
+                loadingProgress.setAttribute('aria-valuenow', percentage);
+            }
+        }
+        
+        // Show initial progress as soon as DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            updateEarlyProgress('DOM loaded, starting application...', 5);
+        });
+    </script>
 </head>
 <body>
     <!-- Header -->
@@ -46,29 +69,22 @@
                 </a>
                 <div id="homeButton" style="display: flex; align-items: center; cursor: pointer;" onclick="goToMainView()">
                     <i class="fab fa-instagram" style="background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 2rem; margin-right: 12px;"></i>
-                    <h1>MM Instagram Archive Explorer</h1>
+                    <h1>SPIE - Single Post Instagram Explorer</h1>
                 </div>
             </div>
-            <div class="titlebar-center" id="channel-navigation">
-                <div class="titlebar-search">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="search-input" placeholder="Search posts by content, author, or keywords...">
-                </div>
-                <div class="titlebar-filters">
-                    <select id="sort-select" class="titlebar-filter-btn" style="border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; background: rgba(255, 255, 255, 0.1); color: var(--titlebar-text); padding: 8px 12px;">
-                        <option value="date-desc">Newest First</option>
-                        <option value="date-asc">Oldest First</option>
-                        <option value="views-desc">Most Likes</option>
-                        <option value="views-asc">Least Likes</option>
-                        <option value="comments-desc">Most Comments</option>
-                        <option value="comments-asc">Least Comments</option>
-                    </select>
-                </div>
+            <div class="titlebar-center" id="channel-navigation" style="display: none;">
+                <!-- Search and filters hidden for single post view -->
             </div>
             <button class="help-button" id="about-btn" data-bs-toggle="modal" data-bs-target="#aboutModal" title="About">
                 <i class="fas fa-question"></i>
             </button>
         </div>
+    </div>
+
+    <!-- Filter Status Indicator -->
+    <div id="filterStatus" class="filter-status">
+        <span id="filterText">No filter active</span>
+        <button class="clear-filter" onclick="window.archiveExplorer?.clearAnalyticsFilter()">Clear</button>
     </div>
 
     <!-- App Drawer Sidebar -->
@@ -96,25 +112,25 @@
         </div>
     </div>
 
-    <!-- Loading Screen -->
-    <div id="loadingScreen" class="loading-screen">
-        <div class="loading-content">
-            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+    <!-- Loading Screen - Shows immediately -->
+    <div id="loadingScreen" class="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div class="loading-content" style="text-align: center;">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 4rem; height: 4rem;">
                 <span class="visually-hidden">Loading...</span>
             </div>
-            <h3>Loading Archive...</h3>
-            <p id="loadingStatus">Initializing application...</p>
-            <div class="progress mt-3" style="width: 400px; height: 8px;">
+            <h3 style="color: #333; margin-bottom: 10px;">Loading SPIE...</h3>
+            <p id="loadingStatus" style="color: #666; margin-bottom: 15px;">Initializing Single Post Instagram Explorer...</p>
+            <div class="progress mt-3" style="width: 400px; height: 10px; margin: 0 auto;">
                 <div id="loadingProgress" class="progress-bar bg-primary" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
-            <small class="text-muted mt-2 d-block">
-                Loading data...
+            <small class="text-muted mt-2 d-block" style="margin-top: 10px;">
+                Loading urine therapy post and comments...
             </small>
         </div>
     </div>
 
     <!-- Welcome & Mode Selection Modal -->
-    <div id="directorySelectionModal" class="directory-modal" style="display: none;">
+    <div id="directorySelectionModal" class="directory-modal" style="display: none; pointer-events: none;">
         <canvas id="welcomeNetworkCanvas" class="network-canvas"></canvas>
         <div class="gradient-background">
             <div class="sphere-1 gradient-sphere"></div>
@@ -129,8 +145,8 @@
                 <div class="welcome-logo">
                     <i class="fab fa-instagram" style="font-size: 4rem; background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;"></i>
                 </div>
-                <h3 class="mt-3 mb-2">Welcome to the MM Instagram Archive Explorer</h3>
-                <p class="text-muted">Choose how you'd like to explore the Medical Medium Instagram content:</p>
+                <h3 class="mt-3 mb-2">Welcome to SPIE - Single Post Instagram Explorer</h3>
+                <p class="text-muted">Viewing single post: drpompa DEFmqyBuiCA - What is URINE Therapy?! 😱</p>
             </div>
             
             <div class="directory-modal-body">
@@ -227,7 +243,7 @@
     <div id="app" class="container-fluid" style="display: none;">
         
         <!-- Stats Bar -->
-        <div id="statsBarContainer" class="d-flex justify-content-between align-items-center mb-3">
+        <div id="statsBarContainer" class="d-flex justify-content-between align-items-center mb-3" style="display: none !important;">
             <!-- View Toggle -->
             <div class="view-toggle">
                 <div class="btn-group" role="group" aria-label="View toggle">
@@ -254,7 +270,7 @@
         </div>
 
         <!-- Post Grid View -->
-        <div id="videoGridView" class="view-container">
+        <div id="videoGridView" class="view-container" style="display: none !important;">
             <div id="videoGrid" class="row g-3">
                 <!-- Posts will be dynamically loaded here -->
             </div>
@@ -268,7 +284,7 @@
         </div>
 
         <!-- Post List View -->
-        <div id="videoListView" class="view-container" style="display: none;">
+        <div id="videoListView" class="view-container" style="display: none !important;">
             <div class="table-responsive">
                 <table class="table table-hover" id="videoListTable">
                     <thead class="table-light sticky-top">
@@ -302,7 +318,7 @@
         </div>
 
         <!-- Post Detail View -->
-        <div id="videoDetailView" class="view-container" style="display: none;">
+        <div id="videoDetailView" class="view-container" style="display: block;">
             <div class="instagram-post-view">
                 
                 <div class="row">
@@ -312,15 +328,13 @@
                             <!-- Post Header Above Media -->
                             <div class="post-meta-header mb-3">
                                 <div class="d-flex align-items-center">
-                                    <button class="btn btn-link p-0 me-3 back-arrow-btn" id="backToGrid" title="Back to posts">
-                                        <i class="bi bi-arrow-left text-dark" style="font-size: 1.4rem;"></i>
-                                    </button>
+                                    <!-- Back button removed for single post view -->
                                     <div class="profile-avatar me-3">
-                                        <img src="MMCommentExplorer.webp" 
-                                             alt="Medical Medium" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover; aspect-ratio: 1/1;">
+                                        <img src="jonno-otto-avatar.png" 
+                                             alt="jonno.otto" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover; aspect-ratio: 1/1;">
                                     </div>
                                     <div class="flex-grow-1">
-                                        <div class="fw-bold">medicalmedium</div>
+                                        <div class="fw-bold">jonno.otto</div>
                                         <div class="text-muted small" id="videoDate">Date</div>
                                     </div>
                                 </div>
@@ -444,8 +458,8 @@
                                         <!-- Liked Words Tab -->
                                         <div id="likedTab" class="tab-pane">
                                             <div class="tab-header">
-                                                <h6>Most Common Words</h6>
-                                                <small class="text-muted">Most frequently used words in comments</small>
+                                                <h6>Most Liked Words</h6>
+                                                <small class="text-muted">Words from comments with the most likes - each word scores points based on the likes of comments it appears in</small>
                                             </div>
                                             <div id="analyticsLikedWords" class="analytics-liked-words"></div>
                                         </div>
@@ -474,12 +488,12 @@
                                 <div class="caption-comment p-3 border-bottom" id="captionComment">
                                     <div class="d-flex align-items-start">
                                         <div class="profile-avatar me-3 flex-shrink-0">
-                                            <img src="MMCommentExplorer.webp" 
-                                                 alt="Medical Medium" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
+                                            <img src="jonno-otto-avatar.png" 
+                                                 alt="jonno.otto" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
                                         </div>
                                         <div class="flex-grow-1">
                                             <div class="comment-text">
-                                                <span class="fw-bold me-1">medicalmedium</span>
+                                                <span class="fw-bold me-1">jonno.otto</span>
                                                 <span id="videoDescription"></span>
                                             </div>
                                             <div class="comment-time text-muted small mt-1" id="captionTime">2h</div>
@@ -505,9 +519,10 @@
                                         </div>
                                         <div class="mt-2">
                                             <select id="commentSort" class="form-select form-select-sm">
+                                                <option value="newest">Newest</option>
+                                                <option value="oldest">Oldest</option>
                                                 <option value="likes-desc">Most Liked</option>
                                                 <option value="likes-asc">Least Liked</option>
-                                                <option value="likes-asc">Oldest</option>
                                             </select>
                                         </div>
                                     </div>

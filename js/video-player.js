@@ -972,7 +972,7 @@ class VideoPlayer {
     async loadInstagramMedia(videoData, dataManager) {
         // Determine media files based on data source
         if (dataManager.dataSource === 'instagram' && videoData.shortcode && this.instagramDirectoryManager) {
-            // For Instagram archive mode, create a single media item
+            // For real Instagram archive mode with directory manager
             const mediaFile = this.instagramDirectoryManager.mediaFiles.get(videoData.shortcode);
             if (mediaFile) {
                 this.mediaFiles = [{
@@ -985,9 +985,10 @@ class VideoPlayer {
                 console.warn(`No media file found for shortcode: ${videoData.shortcode}`);
             }
         } else if (videoData.media_files) {
-            // Legacy format with media_files array
+            // Demo mode or legacy format with media_files array
             this.mediaFiles = videoData.media_files;
         } else {
+            // No media files available
             this.mediaFiles = [];
         }
         

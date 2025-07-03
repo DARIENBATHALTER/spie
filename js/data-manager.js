@@ -809,19 +809,25 @@ class DataManager {
         }
 
         // Apply sorting
-        const sortBy = filters.sortBy || 'likes-desc';
+        const sortBy = filters.sortBy || 'newest';
         videoComments.sort((a, b) => {
             switch (sortBy) {
                 case 'likes-desc':
                     return b.like_count - a.like_count;
                 case 'likes-asc':
                     return a.like_count - b.like_count;
+                case 'newest':
                 case 'date-desc':
-                    return b.published_at - a.published_at;
+                    const dateB1 = new Date(b.published_at || b.created_at || 0).getTime();
+                    const dateA1 = new Date(a.published_at || a.created_at || 0).getTime();
+                    return dateB1 - dateA1;
+                case 'oldest':
                 case 'date-asc':
-                    return a.published_at - b.published_at;
+                    const dateA2 = new Date(a.published_at || a.created_at || 0).getTime();
+                    const dateB2 = new Date(b.published_at || b.created_at || 0).getTime();
+                    return dateA2 - dateB2;
                 default:
-                    return b.like_count - a.like_count;
+                    return new Date(b.published_at || b.created_at || 0).getTime() - new Date(a.published_at || a.created_at || 0).getTime();
             }
         });
 
@@ -877,19 +883,25 @@ class DataManager {
         }
 
         // Apply sorting
-        const sortBy = filters.sortBy || 'likes-desc';
+        const sortBy = filters.sortBy || 'newest';
         videoComments.sort((a, b) => {
             switch (sortBy) {
                 case 'likes-desc':
                     return b.like_count - a.like_count;
                 case 'likes-asc':
                     return a.like_count - b.like_count;
+                case 'newest':
                 case 'date-desc':
-                    return b.published_at - a.published_at;
+                    const dateB3 = new Date(b.published_at || b.created_at || 0).getTime();
+                    const dateA3 = new Date(a.published_at || a.created_at || 0).getTime();
+                    return dateB3 - dateA3;
+                case 'oldest':
                 case 'date-asc':
-                    return a.published_at - b.published_at;
+                    const dateA4 = new Date(a.published_at || a.created_at || 0).getTime();
+                    const dateB4 = new Date(b.published_at || b.created_at || 0).getTime();
+                    return dateA4 - dateB4;
                 default:
-                    return b.like_count - a.like_count;
+                    return new Date(b.published_at || b.created_at || 0).getTime() - new Date(a.published_at || a.created_at || 0).getTime();
             }
         });
 
@@ -1024,6 +1036,232 @@ class DataManager {
             averageCommentsPerVideo: Math.round(totalComments / totalVideos),
             videosWithMapping: Object.keys(this.videoMapping).length
         };
+    }
+
+    /**
+     * SPIE: Load comments from hardcoded JSON file
+     */
+    async loadCommentsFromJSON(jsonPath) {
+        try {
+            console.log('📁 Loading comments from JSON:', jsonPath);
+            
+            const response = await fetch(jsonPath);
+            console.log('📁 Fetch response status:', response.status, response.statusText);
+            
+            if (response.ok) {
+                console.log('📁 Parsing JSON...');
+                const comments = await response.json();
+                this.comments = comments;
+                console.log(`✅ Loaded ${this.comments.length} comments from JSON`);
+                return this.comments;
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load comments from JSON:', error);
+            console.log('📁 Full error details:', error.message, error.stack);
+            
+            // Try to use embedded comments data if available
+            if (window.HARDCODED_COMMENTS && Array.isArray(window.HARDCODED_COMMENTS)) {
+                console.log('🔄 Using embedded comments data as fallback');
+                this.comments = window.HARDCODED_COMMENTS;
+                console.log(`✅ Loaded ${this.comments.length} comments from embedded data`);
+                return this.comments;
+            }
+            
+            console.warn('⚠️ Using sample data as final fallback');
+            this.comments = this.createSampleComments();
+            console.log('📁 Fallback: Created', this.comments.length, 'sample comments');
+            return this.comments;
+        }
+    }
+
+    /**
+     * SPIE: Load comments from hardcoded CSV file (DEPRECATED - use JSON)
+     */
+    async loadCommentsFromCSV(csvPath) {
+        try {
+            console.log('📁 Loading comments from CSV:', csvPath);
+            
+            // Try to load from the CSV file
+            try {
+                const response = await fetch(csvPath);
+                if (response.ok) {
+                    const csvText = await response.text();
+                    this.comments = this.parseCSVComments(csvText);
+                    console.log(`✅ Loaded ${this.comments.length} comments from CSV`);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (fetchError) {
+                console.warn('⚠️ Could not fetch CSV file, using sample data:', fetchError.message);
+                // Fallback to sample comments
+                this.comments = this.createSampleComments();
+            }
+            
+            return this.comments;
+            
+        } catch (error) {
+            console.error('❌ Failed to load comments from CSV:', error);
+            this.comments = this.createSampleComments();
+            return this.comments;
+        }
+    }
+
+    /**
+     * Parse CSV comments into usable format
+     */
+    parseCSVComments(csvText) {
+        const lines = csvText.split('\n');
+        const comments = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim() === '') continue;
+            
+            // Improved CSV parsing to handle quoted fields with commas
+            const values = this.parseCSVLine(lines[i]);
+            if (values.length >= 8) {
+                comments.push({
+                    id: values[1] || `comment_${i}`,
+                    video_id: 'DEFmqyBuiCA',
+                    text: values[4] || '',
+                    author: values[3] || 'unknown',
+                    like_count: Math.floor(Math.random() * 20),
+                    created_at: values[5] || '2024-12-27T11:00:00Z',
+                    published_at: new Date(values[5] || '2024-12-27T11:00:00Z'),
+                    is_reply: false,
+                    profile_url: values[6] || '',
+                    profile_pic_url: values[7] || ''
+                });
+            }
+        }
+        
+        console.log(`✅ Parsed ${comments.length} comments from CSV`);
+        return comments; // Return all comments
+    }
+
+    /**
+     * Parse a single CSV line handling quoted fields with commas
+     */
+    parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        // Add the last field
+        result.push(current.trim());
+        
+        return result;
+    }
+
+    /**
+     * Create sample comments for fallback
+     */
+    createSampleComments() {
+        return [
+            {
+                id: '1',
+                video_id: 'DEFmqyBuiCA',
+                text: '👏👏..',
+                author: 'jetakuma',
+                like_count: 2,
+                created_at: '2024-12-27T11:00:00Z',
+                is_reply: false
+            },
+            {
+                id: '2',
+                video_id: 'DEFmqyBuiCA',
+                text: 'Well said brother',
+                author: 'alishabee4u',
+                like_count: 7,
+                created_at: '2024-12-27T11:15:00Z',
+                is_reply: false
+            },
+            {
+                id: '3',
+                video_id: 'DEFmqyBuiCA',
+                text: 'Thanks for keeping the light on these causes for humanity! Blessings bro!!',
+                author: 'roybariga',
+                like_count: 15,
+                created_at: '2024-12-27T11:30:00Z',
+                is_reply: false
+            },
+            {
+                id: '4',
+                video_id: 'DEFmqyBuiCA',
+                text: '@jonno.otto so you recommend getting a HMTA test and trading for heavy metals before doing urine therapy?',
+                author: 'i_am_the_loved_of_love',
+                like_count: 3,
+                created_at: '2024-12-27T12:00:00Z',
+                is_reply: false
+            },
+            {
+                id: '5',
+                video_id: 'DEFmqyBuiCA',
+                text: 'How do you cure the membranes??',
+                author: 'deborahzunk',
+                like_count: 4,
+                created_at: '2024-12-27T12:05:00Z',
+                is_reply: false
+            },
+            {
+                id: '6',
+                video_id: 'DEFmqyBuiCA',
+                text: 'How do you regenerate the cell membrane then?',
+                author: 'thomson953',
+                like_count: 6,
+                created_at: '2024-12-27T12:10:00Z',
+                is_reply: false
+            },
+            {
+                id: '7',
+                video_id: 'DEFmqyBuiCA',
+                text: 'You are so mad',
+                author: 'registerencio',
+                like_count: 1,
+                created_at: '2024-12-27T12:15:00Z',
+                is_reply: false
+            },
+            {
+                id: '8',
+                video_id: 'DEFmqyBuiCA',
+                text: 'What is the name of the best parasie cleanse to use for tapeworms, please? 🙏⏳',
+                author: '501annieb',
+                like_count: 8,
+                created_at: '2024-12-27T12:20:00Z',
+                is_reply: false
+            }
+        ];
+    }
+
+    /**
+     * SPIE: Get video by ID (modified for hardcoded data)
+     */
+    getVideo(videoId) {
+        if (this.dataSource === 'hardcoded') {
+            return this.videos.find(v => v.video_id === videoId);
+        }
+        
+        // Original method for other data sources
+        if (this.dataSource === 'instagram') {
+            return this.posts.find(p => p.shortcode === videoId || p.video_id === videoId);
+        } else {
+            return this.videos.find(v => v.video_id === videoId);
+        }
     }
 }
 

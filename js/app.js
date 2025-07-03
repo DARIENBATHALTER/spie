@@ -29,7 +29,27 @@ class ArchiveExplorer {
         // List view sorting state
         this.currentListSort = { field: 'date', direction: 'desc' };
         
+        // Analytics filter state
+        this.analyticsFilter = null;
+        this.originalComments = null;
+        
         this.initializeApp();
+    }
+
+    /**
+     * Update loading progress
+     */
+    updateLoadingProgress(message, percentage) {
+        const loadingStatus = document.getElementById('loadingStatus');
+        const loadingProgress = document.getElementById('loadingProgress');
+        
+        if (loadingStatus) loadingStatus.textContent = message;
+        if (loadingProgress) {
+            loadingProgress.style.width = `${percentage}%`;
+            loadingProgress.setAttribute('aria-valuenow', percentage);
+        }
+        
+        console.log(`📊 Loading: ${percentage}% - ${message}`);
     }
 
     /**
@@ -37,22 +57,52 @@ class ArchiveExplorer {
      */
     async initializeApp() {
         try {
+            // Update loading progress
+            this.updateLoadingProgress('Caching DOM elements...', 15);
+            
             // Cache DOM elements first
             this.cacheElements();
             
-            // Validate critical elements exist
-            if (!this.elements.loadingStatus || !this.elements.loadingProgress) {
-                throw new Error('Loading screen elements not found. Please check HTML structure.');
-            }
+            // SPIE: Skip welcome screen and load directly to single post view
+            console.log('🚀 SPIE: Loading single post directly...');
             
-            // Show folder selection modal for Instagram archive
+            // Update loading progress
+            this.updateLoadingProgress('Setting up single post view...', 30);
+            
+            // Hide welcome modal but keep loading screen for now
+            document.getElementById('directorySelectionModal').style.display = 'none';
+            
+            // Setup hardcoded post data
+            this.setupHardcodedData();
+            
+            // Update loading progress
+            this.updateLoadingProgress('Loading comments data...', 50);
+            
+            // Initialize data manager with hardcoded data
+            this.dataManager.dataSource = 'hardcoded';
+            
+            // Load the single post view
+            await this.loadSinglePost();
+            
+            // Update loading progress
+            this.updateLoadingProgress('Finalizing...', 90);
+            
+            // Small delay to show completion
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Complete loading
+            this.updateLoadingProgress('Complete!', 100);
+            
+            // Another small delay before hiding loader
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Hide loading screen and show app
             this.elements.loadingScreen.style.display = 'none';
-            this.elements.app.style.display = 'none';
-            this.showModeSelection();
+            this.elements.app.style.display = 'block';
             
         } catch (error) {
             console.error('❌ Failed to initialize app:', error);
-            this.showError('Failed to load the archive. Please refresh the page.');
+            this.showError('Failed to load the post. Please refresh the page.');
         }
     }
 
@@ -1985,35 +2035,113 @@ class ArchiveExplorer {
     }
     
     /**
-     * Analyze comment sentiment (improved)
+     * Analyze comment sentiment - URINE THERAPY SPECIFIC
      */
     analyzeSentiment(comments) {
         const sentiments = {
-            positive: { count: 0, words: ['amazing', 'love', 'thank', 'great', 'wonderful', 'fantastic', 'incredible', 'awesome', 'perfect', 'blessed'] },
-            grateful: { count: 0, words: ['grateful', 'thankful', 'bless', 'appreciate', 'thank you', 'thanks'] },
-            healing: { count: 0, words: ['healing', 'better', 'improved', 'recovery', 'healed', 'relief', 'helped'] },
-            questioning: { count: 0, words: ['?', 'how', 'what', 'when', 'where', 'why', 'can you', 'could you'] }
+            grateful_supportive: { 
+                count: 0, 
+                patterns: [
+                    /\b(thank|thanks|grateful|bless|amen|halleluja|love|amazing|great|beautiful)\b/i,
+                    /\b(well said|right|correct|exactly|absolutely|agree|true)\b/i,
+                    /\b(keep|continue|spread|awareness|light)\b/i,
+                    /👏|🙏|❤️|💜|💙|🙌/
+                ]
+            },
+            genuine_questions: { 
+                count: 0, 
+                patterns: [
+                    /\b(how|what|when|where|which|why)\b.*\?/i,
+                    /\b(recommend|suggest|advice|help|guide)\b/i,
+                    /\b(cleanse|parasite|cure|heal|treatment|protocol)\b.*\?/i,
+                    /\b(safe|side effects|doctor|medical)\b.*\?/i
+                ]
+            },
+            personal_testimony: { 
+                count: 0, 
+                patterns: [
+                    /\b(i|my|me)\b.*\b(tried|did|experience|worked|helped|cured|healed|better|improved|saved)\b/i,
+                    /\b(urine therapy)\b.*\b(saved|helped|cured|healed|life)\b/i,
+                    /\b(menopause|cancer|psoriasis|autism)\b.*\b(helped|cured|healed|better)\b/i
+                ]
+            },
+            curiosity_shock: { 
+                count: 0, 
+                patterns: [
+                    /\b(wow|omg|unbelievable|insane|crazy)\b/i,
+                    /😱|😮|🤔|😲/,
+                    /\b(knowledge|learn|interesting|fascinating)\b/i
+                ]
+            },
+            skeptical_concern: { 
+                count: 0, 
+                patterns: [
+                    /\b(toxic|dangerous|suspicious|fake|scam|bullshit|bs|ridiculous|stupid|nonsense)\b/i,
+                    /\b(disgusting|gross|eww|yuck)\b/i,
+                    /\b(mad|confused|why)\b/i
+                ]
+            },
+            simple_engagement: { 
+                count: 0, 
+                patterns: [
+                    /^(yes|no|true|ok|good|nice|cool)$/i,
+                    /^[👏🙌❤️💜💙😍🔥]+$/,
+                    /^\w{1,3}$/ // Very short responses
+                ]
+            }
         };
         
+        // Count unique comments for each sentiment category using pattern matching
+        const commentsSentiments = new Set();
         comments.forEach(comment => {
-            const text = (comment.content || comment.text || '').toLowerCase();
+            const text = comment.content || comment.text || '';
+            const commentId = comment.id || Math.random();
             
-            Object.keys(sentiments).forEach(sentiment => {
-                sentiments[sentiment].words.forEach(word => {
-                    if (text.includes(word)) {
-                        sentiments[sentiment].count++;
+            // Track which sentiment this comment matches (only count once per comment)
+            let sentimentFound = false;
+            
+            // Check in order of priority to avoid double-counting
+            const sentimentOrder = ['personal_testimony', 'genuine_questions', 'skeptical_concern', 'grateful_supportive', 'curiosity_shock', 'simple_engagement'];
+            
+            for (const sentiment of sentimentOrder) {
+                if (!sentimentFound) {
+                    for (const pattern of sentiments[sentiment].patterns) {
+                        if (pattern.test(text)) {
+                            sentiments[sentiment].count++;
+                            commentsSentiments.add(commentId);
+                            sentimentFound = true;
+                            break;
+                        }
                     }
-                });
-            });
+                }
+            }
         });
         
-        const total = comments.length;
-        return {
-            positive: Math.round((sentiments.positive.count / total) * 100),
-            grateful: Math.round((sentiments.grateful.count / total) * 100),
-            healing: Math.round((sentiments.healing.count / total) * 100),
-            questioning: Math.round((sentiments.questioning.count / total) * 100)
+        // Calculate totals and ensure they add up to 100%
+        const totalCategorized = Object.values(sentiments).reduce((sum, s) => sum + s.count, 0);
+        const totalComments = comments.length;
+        const uncategorized = totalComments - totalCategorized;
+        
+        // Calculate percentages
+        const percentages = {
+            grateful_supportive: Math.round((sentiments.grateful_supportive.count / totalComments) * 100),
+            genuine_questions: Math.round((sentiments.genuine_questions.count / totalComments) * 100),
+            personal_testimony: Math.round((sentiments.personal_testimony.count / totalComments) * 100),
+            curiosity_shock: Math.round((sentiments.curiosity_shock.count / totalComments) * 100),
+            skeptical_concern: Math.round((sentiments.skeptical_concern.count / totalComments) * 100),
+            simple_engagement: Math.round((sentiments.simple_engagement.count / totalComments) * 100),
+            uncategorized: Math.round((uncategorized / totalComments) * 100)
         };
+        
+        // Ensure percentages add up to 100% by adjusting the largest category
+        const total = Object.values(percentages).reduce((sum, p) => sum + p, 0);
+        if (total !== 100) {
+            const diff = 100 - total;
+            const largestCategory = Object.keys(percentages).reduce((a, b) => percentages[a] > percentages[b] ? a : b);
+            percentages[largestCategory] += diff;
+        }
+        
+        return percentages;
     }
     
     /**
@@ -2025,26 +2153,50 @@ class ArchiveExplorer {
         
         const html = `
             <div class="sentiment-grid">
-                <div class="sentiment-item">
-                    <span class="sentiment-emoji">😍</span>
-                    <div class="sentiment-label">Positive</div>
-                    <div class="sentiment-percentage">${sentimentData.positive}%</div>
-                </div>
-                <div class="sentiment-item">
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('grateful_supportive')">
                     <span class="sentiment-emoji">🙏</span>
-                    <div class="sentiment-label">Grateful</div>
-                    <div class="sentiment-percentage">${sentimentData.grateful}%</div>
+                    <div class="sentiment-label">Grateful & Supportive</div>
+                    <div class="sentiment-percentage">${sentimentData.grateful_supportive}%</div>
+                    <div class="sentiment-desc">Thankful, praising, agreeing</div>
                 </div>
-                <div class="sentiment-item">
-                    <span class="sentiment-emoji">💚</span>
-                    <div class="sentiment-label">Healing</div>
-                    <div class="sentiment-percentage">${sentimentData.healing}%</div>
-                </div>
-                <div class="sentiment-item">
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('genuine_questions')">
                     <span class="sentiment-emoji">❓</span>
-                    <div class="sentiment-label">Questions</div>
-                    <div class="sentiment-percentage">${sentimentData.questioning}%</div>
+                    <div class="sentiment-label">Genuine Questions</div>
+                    <div class="sentiment-percentage">${sentimentData.genuine_questions}%</div>
+                    <div class="sentiment-desc">Asking for help & guidance</div>
                 </div>
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('personal_testimony')">
+                    <span class="sentiment-emoji">📝</span>
+                    <div class="sentiment-label">Personal Testimony</div>
+                    <div class="sentiment-percentage">${sentimentData.personal_testimony}%</div>
+                    <div class="sentiment-desc">Sharing healing experiences</div>
+                </div>
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('curiosity_shock')">
+                    <span class="sentiment-emoji">😮</span>
+                    <div class="sentiment-label">Curiosity & Shock</div>
+                    <div class="sentiment-percentage">${sentimentData.curiosity_shock}%</div>
+                    <div class="sentiment-desc">Surprised, intrigued, learning</div>
+                </div>
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('skeptical_concern')">
+                    <span class="sentiment-emoji">🤔</span>
+                    <div class="sentiment-label">Skeptical & Concerned</div>
+                    <div class="sentiment-percentage">${sentimentData.skeptical_concern}%</div>
+                    <div class="sentiment-desc">Doubting, worried, critical</div>
+                </div>
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('simple_engagement')">
+                    <span class="sentiment-emoji">👍</span>
+                    <div class="sentiment-label">Simple Engagement</div>
+                    <div class="sentiment-percentage">${sentimentData.simple_engagement}%</div>
+                    <div class="sentiment-desc">Brief reactions & emojis</div>
+                </div>
+                ${sentimentData.uncategorized > 0 ? `
+                <div class="sentiment-item" onclick="window.archiveExplorer?.filterBySentiment('uncategorized')">
+                    <span class="sentiment-emoji">💬</span>
+                    <div class="sentiment-label">Other</div>
+                    <div class="sentiment-percentage">${sentimentData.uncategorized}%</div>
+                    <div class="sentiment-desc">Unclassified comments</div>
+                </div>
+                ` : ''}
             </div>
         `;
         
@@ -2052,70 +2204,38 @@ class ArchiveExplorer {
     }
     
     /**
-     * Analyze themes (improved)
+     * Analyze themes - URINE THERAPY SPECIFIC
      */
     analyzeThemes(comments) {
         const themes = {
-            'Podcast Requests': { count: 0, keywords: ['listen'], exactMatches: ['listen'] },
-            'Preorder Requests': { count: 0, keywords: ['preorder'], exactMatches: ['preorder'] },
-            'Recipe Requests': { count: 0, keywords: ['recipe'], exactMatches: ['recipe'] },
-            'DMs Sent': { count: 0, keywords: [], exactMatches: [], medicalmediumDMs: true },
-            'Information Requests': { count: 0, keywords: [], exactMatches: [] }, // Will be calculated separately
-            'Health Questions': { count: 0, keywords: ['how long', 'dosage', 'how much', 'safe', 'pregnancy'] },
-            'Success Stories': { count: 0, keywords: ['helped', 'better', 'improved', 'healed', 'working', 'results'] },
-            'Gratitude': { count: 0, keywords: ['thank you', 'grateful', 'bless', 'saved my life', 'appreciate'] }
+            'Safety Concerns': { count: 0, keywords: ['safe', 'dangerous', 'risk', 'infection', 'bacteria', 'sterile', 'clean', 'harmful'] },
+            'How-To Questions': { count: 0, keywords: ['how', 'when', 'how much', 'how often', 'what time', 'morning', 'fresh', 'drink', 'first'] },
+            'Medical Skepticism': { count: 0, keywords: ['doctor', 'medical', 'science', 'proof', 'study', 'research', 'evidence', 'fda', 'approved'] },
+            'Personal Success Stories': { count: 0, keywords: ['tried', 'worked', 'helped', 'cured', 'healed', 'better', 'improved', 'results', 'my'] },
+            'Cultural/Religious References': { count: 0, keywords: ['bible', 'ancient', 'tradition', 'culture', 'ancestors', 'natural', 'primitive'] },
+            'Comparison to Other Therapies': { count: 0, keywords: ['like', 'similar', 'compare', 'versus', 'instead', 'alternative', 'other'] },
+            'Extreme Reactions': { count: 0, keywords: ['crazy', 'insane', 'wtf', 'omg', 'unbelievable', 'ridiculous', 'absurd', 'weird'] },
+            'Health Conditions Mentioned': { count: 0, keywords: ['cancer', 'diabetes', 'kidney', 'liver', 'skin', 'acne', 'eczema', 'arthritis', 'disease'] }
         };
-        
-        // Track word frequency for Information Requests
-        const wordFrequency = {};
         
         comments.forEach(comment => {
             const text = (comment.content || comment.text || '').toLowerCase().trim();
-            const author = comment.owner?.username || comment.author || '';
             
-            // Check for DMs sent by medicalmedium
-            if (author === 'medicalmedium' && text.includes('dm')) {
-                themes['DMs Sent'].count++;
-                return; // Don't count this for other themes
-            }
+            // Track which themes this comment matches (only count once per theme)
+            const matchedThemes = new Set();
             
-            // Check exact matches for specific themes
+            // Check keyword matches for each theme
             Object.keys(themes).forEach(theme => {
-                if (themes[theme].exactMatches) {
-                    themes[theme].exactMatches.forEach(exactMatch => {
-                        if (text === exactMatch) {
-                            themes[theme].count++;
-                        }
-                    });
-                }
-                
-                // Check keyword matches for other themes
-                if (themes[theme].keywords) {
+                if (themes[theme].keywords && !matchedThemes.has(theme)) {
                     themes[theme].keywords.forEach(keyword => {
-                        if (text.includes(keyword)) {
+                        if (text.includes(keyword) && !matchedThemes.has(theme)) {
                             themes[theme].count++;
+                            matchedThemes.add(theme);
                         }
                     });
                 }
             });
-            
-            // Track single words for Information Requests (excluding exact matches from other themes)
-            const words = text.split(/\s+/).filter(word => word.length > 2);
-            if (words.length === 1 && !['listen', 'preorder', 'recipe'].includes(words[0])) {
-                const word = words[0];
-                wordFrequency[word] = (wordFrequency[word] || 0) + 1;
-            }
         });
-        
-        // Find the most common single-word information requests
-        const topInfoRequests = Object.entries(wordFrequency)
-            .filter(([word, count]) => count >= 5) // At least 5 occurrences
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3); // Top 3 most requested
-        
-        if (topInfoRequests.length > 0) {
-            themes['Information Requests'].count = topInfoRequests.reduce((sum, [word, count]) => sum + count, 0);
-        }
         
         // Convert to array and sort by count
         return Object.entries(themes)
@@ -2188,9 +2308,9 @@ class ArchiveExplorer {
         // Remove single post mode class to restore app padding
         document.getElementById('app').classList.remove('single-post-mode');
         
-        // Show channel navigation tools and stats bar
-        document.getElementById('channel-navigation').style.display = 'flex';
-        document.getElementById('statsBarContainer').style.display = 'flex';
+        // SPIE: Keep channel navigation and stats bar hidden for single post view
+        document.getElementById('channel-navigation').style.display = 'none';
+        document.getElementById('statsBarContainer').style.display = 'none';
         
         
         // Clean up video player
@@ -2244,7 +2364,7 @@ class ArchiveExplorer {
         }
         
         // Update profile pictures - use the local avatar image
-        const avatarPath = 'MMCommentExplorer.webp';
+        const avatarPath = 'jonno-otto-avatar.png';
         
         // Update caption profile picture
         const captionProfileImg = document.querySelector('#captionComment .profile-avatar img');
@@ -2501,6 +2621,7 @@ class ArchiveExplorer {
         
         return html;
     }
+
 
     /**
      * Find comment by ID in current data
@@ -3420,11 +3541,450 @@ class ArchiveExplorer {
         if (text.length <= maxLength) return text;
         return text.substr(0, maxLength) + '...';
     }
+
+    /**
+     * SPIE: Setup hardcoded post data
+     */
+    setupHardcodedData() {
+        console.log('🎯 Setting up hardcoded post data for SPIE');
+        
+        // Hardcoded post metadata
+        this.hardcodedPost = {
+            video_id: 'DEFmqyBuiCA',
+            shortcode: 'DEFmqyBuiCA',
+            title: 'What is URINE Therapy?! 😱',
+            description: 'What is URINE Therapy?! 😱',
+            published_at: '2024-12-27T10:55:15Z',
+            view_count: 31222,
+            like_count: 5649,
+            comment_count: 0, // Will be set from loaded comments
+            author: 'jonno.otto',
+            username: 'jonno.otto',
+            hasMedia: true,
+            media_url: 'DEFmqyBuiCA_2024_12_27__10_55_15.mp4'
+        };
+        
+        console.log('✅ Hardcoded post data setup complete');
+    }
+
+    /**
+     * SPIE: Load the single post view
+     */
+    async loadSinglePost() {
+        try {
+            console.log('📹 Loading single post view for SPIE');
+            
+            // Set up the data manager with our hardcoded post
+            this.dataManager.videos = [this.hardcodedPost];
+            this.dataManager.videoMap = new Map();
+            this.dataManager.videoMap.set(this.hardcodedPost.video_id, this.hardcodedPost);
+            
+            // Initialize video player
+            this.videoPlayer = new VideoPlayer(
+                document.getElementById('videoPlayer'),
+                document.getElementById('videoFallback'),
+                null // No mode manager needed for hardcoded data
+            );
+            
+            // Initialize export service
+            this.exportService = new ExportService();
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            // Load the hardcoded comments
+            await this.loadHardcodedComments();
+            
+            // Show the video detail view directly
+            this.currentVideo = this.hardcodedPost;
+            this.currentView = 'video-detail';
+            
+            // Update UI to show video detail view
+            this.elements.videoGridView.style.display = 'none';
+            this.elements.videoListView.style.display = 'none';
+            this.elements.videoDetailView.style.display = 'block';
+            
+            // Hide navigation elements
+            document.getElementById('channel-navigation').style.display = 'none';
+            document.getElementById('statsBarContainer').style.display = 'none';
+            
+            // Load video media
+            await this.loadHardcodedVideo();
+            
+            // Update video info
+            this.updateVideoInfo(this.hardcodedPost);
+            
+            // Load comments (no pagination limit for single post view)
+            this.currentCommentPagination = { page: 1, limit: 999999 };
+            await this.loadComments();
+            
+            // Generate and show insights
+            await this.generateCommentInsights();
+            
+            // Set up post analytics toggle
+            this.setupAnalyticsToggle();
+            
+            console.log('✅ Single post view loaded successfully');
+            
+            // Store original comments for filtering
+            this.originalComments = [...this.dataManager.comments];
+            
+            // Set up analytics click handlers
+            this.setupAnalyticsClickHandlers();
+            
+        } catch (error) {
+            console.error('❌ Failed to load single post:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * SPIE: Load hardcoded comments from CSV file
+     */
+    async loadHardcodedComments() {
+        try {
+            console.log('💬 Loading hardcoded comments from CSV');
+            
+            // Load comments using the data manager's JSON loader
+            const commentsPath = 'DEFmqyBuiCA_comments.json';
+            
+            await this.dataManager.loadCommentsFromJSON(commentsPath);
+            
+            // Update comment count in post data
+            this.hardcodedPost.comment_count = this.dataManager.comments.length;
+            
+            console.log(`✅ Loaded ${this.dataManager.comments.length} comments for single post`);
+            
+        } catch (error) {
+            console.error('❌ Failed to load hardcoded comments:', error);
+            this.dataManager.comments = [];
+        }
+    }
+
+    /**
+     * SPIE: Load hardcoded video file
+     */
+    async loadHardcodedVideo() {
+        try {
+            console.log('🎬 Loading hardcoded video file');
+            
+            const videoPath = 'DEFmqyBuiCA_2024_12_27__10_55_15.mp4';
+            
+            // Set up video element
+            const videoElement = document.getElementById('videoPlayer');
+            if (videoElement) {
+                videoElement.src = videoPath;
+                videoElement.load();
+            }
+            
+            console.log('✅ Video loaded from:', videoPath);
+            
+        } catch (error) {
+            console.error('❌ Failed to load hardcoded video:', error);
+        }
+    }
+
+    /**
+     * Set up analytics click handlers for filtering
+     */
+    setupAnalyticsClickHandlers() {
+        // Set up event delegation for analytics panel
+        document.addEventListener('click', (e) => {
+            // Handle sentiment item clicks
+            if (e.target.closest('.sentiment-item')) {
+                const sentimentItem = e.target.closest('.sentiment-item');
+                const sentimentType = this.extractSentimentType(sentimentItem);
+                if (sentimentType) {
+                    this.filterBySentiment(sentimentType, sentimentItem);
+                }
+            }
+            
+            // Handle word cloud clicks
+            if (e.target.closest('.analytics-word-item')) {
+                const wordItem = e.target.closest('.analytics-word-item');
+                const word = this.extractWordFromElement(wordItem);
+                if (word) {
+                    this.filterByWord(word, wordItem);
+                }
+            }
+            
+            // Handle theme clicks
+            if (e.target.closest('.theme-item')) {
+                const themeItem = e.target.closest('.theme-item');
+                const theme = this.extractThemeFromElement(themeItem);
+                if (theme) {
+                    this.filterByTheme(theme, themeItem);
+                }
+            }
+        });
+    }
+
+    /**
+     * Filter comments by sentiment
+     */
+    filterBySentiment(sentimentType, element) {
+        console.log('🔍 Filtering by sentiment:', sentimentType);
+        
+        // Clear previous active states
+        document.querySelectorAll('.sentiment-item.active, .analytics-word-item.active, .theme-item.active').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        // Set active state if element provided
+        if (element) {
+            element.classList.add('active');
+        } else {
+            // Find and activate the sentiment item
+            const sentimentItem = document.querySelector(`.sentiment-item[onclick*="${sentimentType}"]`);
+            if (sentimentItem) sentimentItem.classList.add('active');
+        }
+        
+        // Filter comments based on sentiment patterns
+        const sentimentPatterns = this.getSentimentPatterns(sentimentType);
+        const filteredComments = this.originalComments.filter(comment => {
+            const text = comment.content || comment.text || '';
+            return sentimentPatterns.some(pattern => pattern.test(text));
+        });
+        
+        this.applyCommentFilter(filteredComments, this.formatSentimentLabel(sentimentType));
+    }
+
+    /**
+     * Filter comments by word
+     */
+    filterByWord(word, element) {
+        console.log('🔍 Filtering by word:', word);
+        
+        // Clear previous active states
+        document.querySelectorAll('.sentiment-item.active, .analytics-word-item.active, .theme-item.active').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        // Set active state
+        element.classList.add('active');
+        
+        // Filter comments containing the word
+        const filteredComments = this.originalComments.filter(comment => {
+            const text = (comment.content || comment.text || '').toLowerCase();
+            return text.includes(word.toLowerCase());
+        });
+        
+        this.applyCommentFilter(filteredComments, `Word: "${word}"`);
+    }
+
+    /**
+     * Apply comment filter and update UI
+     */
+    applyCommentFilter(filteredComments, filterLabel) {
+        this.analyticsFilter = { comments: filteredComments, label: filterLabel };
+        
+        // Update comment list
+        this.renderComments(filteredComments);
+        
+        // Update comments count
+        const commentsTitle = document.getElementById('commentsTitle');
+        if (commentsTitle) {
+            commentsTitle.textContent = `Comments (${filteredComments.length} of ${this.originalComments.length})`;
+        }
+        
+        // Show filter status
+        this.showFilterStatus(filterLabel, filteredComments.length);
+    }
+
+    /**
+     * Clear analytics filter
+     */
+    clearAnalyticsFilter() {
+        console.log('🔄 Clearing analytics filter');
+        
+        // Clear active states
+        document.querySelectorAll('.sentiment-item.active, .analytics-word-item.active, .theme-item.active').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        // Reset filter
+        this.analyticsFilter = null;
+        
+        // Restore original comments
+        this.renderComments(this.originalComments);
+        
+        // Update comments count
+        const commentsTitle = document.getElementById('commentsTitle');
+        if (commentsTitle) {
+            commentsTitle.textContent = `Comments (${this.originalComments.length})`;
+        }
+        
+        // Hide filter status
+        this.hideFilterStatus();
+    }
+
+    /**
+     * Show filter status indicator
+     */
+    showFilterStatus(filterLabel, count) {
+        const filterStatus = document.getElementById('filterStatus');
+        const filterText = document.getElementById('filterText');
+        
+        if (filterStatus && filterText) {
+            filterText.textContent = `${count} Comments filtered below (${filterLabel})`;
+            filterStatus.style.display = 'block';
+        }
+    }
+
+    /**
+     * Hide filter status indicator
+     */
+    hideFilterStatus() {
+        const filterStatus = document.getElementById('filterStatus');
+        if (filterStatus) {
+            filterStatus.style.display = 'none';
+        }
+    }
+
+    /**
+     * Extract sentiment type from element
+     */
+    extractSentimentType(element) {
+        const label = element.querySelector('.sentiment-label')?.textContent;
+        if (!label) return null;
+        
+        const labelMap = {
+            'Information Seeking': 'information_seeking',
+            'Personal Experience': 'personal_experience',
+            'Supportive': 'supportive_believing',
+            'Skeptical': 'skeptical_critical',
+            'Medical Concerns': 'medical_questions',
+            'Emotional Reactions': 'emotional_reactions',
+            'Other': 'other'
+        };
+        
+        return labelMap[label] || null;
+    }
+
+    /**
+     * Extract word from analytics word element
+     */
+    extractWordFromElement(element) {
+        const text = element.textContent;
+        return text.replace(/\s+\d+$/, '').trim(); // Remove count numbers at the end
+    }
+
+    /**
+     * Filter comments by theme
+     */
+    filterByTheme(theme, element) {
+        console.log('🔍 Filtering by theme:', theme);
+        
+        // Clear previous active states
+        document.querySelectorAll('.sentiment-item.active, .analytics-word-item.active, .theme-item.active').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        // Set active state
+        if (element) {
+            element.classList.add('active');
+        }
+        
+        // Filter comments based on theme keywords
+        const themeKeywords = this.getThemeKeywords(theme);
+        const filteredComments = this.originalComments.filter(comment => {
+            const text = (comment.content || comment.text || '').toLowerCase();
+            return themeKeywords.some(keyword => text.includes(keyword.toLowerCase()));
+        });
+        
+        this.applyCommentFilter(filteredComments, `Theme: ${theme}`);
+    }
+
+    /**
+     * Extract theme from theme element
+     */
+    extractThemeFromElement(element) {
+        const titleElement = element.querySelector('.theme-title');
+        return titleElement ? titleElement.textContent.trim() : null;
+    }
+
+    /**
+     * Get theme keywords for filtering
+     */
+    getThemeKeywords(theme) {
+        const themeKeywords = {
+            'Safety Concerns': ['safe', 'dangerous', 'risk', 'infection', 'bacteria', 'sterile', 'clean', 'harmful'],
+            'How-To Questions': ['how', 'when', 'how much', 'how often', 'what time', 'morning', 'fresh', 'drink', 'first'],
+            'Medical Skepticism': ['doctor', 'medical', 'science', 'proof', 'study', 'research', 'evidence', 'fda', 'approved'],
+            'Personal Success Stories': ['tried', 'worked', 'helped', 'cured', 'healed', 'better', 'improved', 'results', 'my'],
+            'Cultural/Religious References': ['bible', 'ancient', 'tradition', 'culture', 'ancestors', 'natural', 'primitive'],
+            'Comparison to Other Therapies': ['like', 'similar', 'compare', 'versus', 'instead', 'alternative', 'other'],
+            'Extreme Reactions': ['crazy', 'insane', 'wtf', 'omg', 'unbelievable', 'ridiculous', 'absurd', 'weird'],
+            'Health Conditions Mentioned': ['cancer', 'diabetes', 'kidney', 'liver', 'skin', 'acne', 'eczema', 'arthritis', 'disease']
+        };
+        
+        return themeKeywords[theme] || [];
+    }
+
+    /**
+     * Get sentiment keywords for filtering
+     */
+    getSentimentPatterns(sentimentType) {
+        const sentimentPatterns = {
+            grateful_supportive: [
+                /\b(thank|thanks|grateful|bless|amen|halleluja|love|amazing|great|beautiful)\b/i,
+                /\b(well said|right|correct|exactly|absolutely|agree|true)\b/i,
+                /\b(keep|continue|spread|awareness|light)\b/i,
+                /🙏|❤️|💜|💙|🙌/
+            ],
+            genuine_questions: [
+                /\b(how|what|when|where|which|why)\b.*\?/i,
+                /\b(recommend|suggest|advice|help|guide)\b/i,
+                /\b(cleanse|parasite|cure|heal|treatment|protocol)\b.*\?/i,
+                /\b(safe|side effects|doctor|medical)\b.*\?/i
+            ],
+            personal_testimony: [
+                /\b(i|my|me)\b.*\b(tried|did|experience|worked|helped|cured|healed|better|improved|saved)\b/i,
+                /\b(urine therapy)\b.*\b(saved|helped|cured|healed|life)\b/i,
+                /\b(menopause|cancer|psoriasis|autism)\b.*\b(helped|cured|healed|better)\b/i
+            ],
+            curiosity_shock: [
+                /\b(wow|omg|unbelievable|insane|crazy)\b/i,
+                /😱|😮|🤔|😲/,
+                /\b(knowledge|learn|interesting|fascinating)\b/i
+            ],
+            skeptical_concern: [
+                /\b(toxic|dangerous|suspicious|fake|scam|bullshit|bs|ridiculous|stupid|nonsense)\b/i,
+                /\b(disgusting|gross|eww|yuck)\b/i,
+                /\b(mad|confused|why)\b/i
+            ],
+            simple_engagement: [
+                /^(yes|no|true|ok|good|nice|cool)$/i,
+                /^[🙏🙌❤️💜💙😍🔥]+$/,
+                /^\w{1,3}$/
+            ],
+            uncategorized: [/.*/ ] // Catch-all pattern
+        };
+        
+        return sentimentPatterns[sentimentType] || [];
+    }
+
+    /**
+     * Format sentiment label for display
+     */
+    formatSentimentLabel(sentimentType) {
+        const labelMap = {
+            'grateful_supportive': 'Grateful & Supportive',
+            'genuine_questions': 'Genuine Questions',
+            'personal_testimony': 'Personal Testimony',
+            'curiosity_shock': 'Curiosity & Shock',
+            'skeptical_concern': 'Skeptical & Concerned',
+            'simple_engagement': 'Simple Engagement',
+            'uncategorized': 'Other'
+        };
+        
+        return labelMap[sentimentType] || sentimentType;
+    }
 }
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new ArchiveExplorer();
+    window.archiveExplorer = new ArchiveExplorer();
 });
 
 // Export for use in other modules
