@@ -1614,7 +1614,7 @@ class ArchiveExplorer {
                     <div class="post-stats">${comments}</div>
                 </td>
                 <td class="text-center">
-                    <button class="btn btn-outline-primary btn-sm export-post-btn" data-video-id="${video.video_id}">
+                    <button class="btn btn-outline-primary btn-sm export-post-btn" data-video-id="${video.video_id}" style="display: none;">
                         <i class="bi bi-download"></i> Export
                     </button>
                 </td>
@@ -3515,10 +3515,19 @@ class ArchiveExplorer {
                 }
             }
             
-            // Handle word cloud clicks
+            // Handle word cloud clicks (both analytics and mini word clouds)
             if (e.target.closest('.analytics-word-item')) {
                 const wordItem = e.target.closest('.analytics-word-item');
                 const word = this.extractWordFromElement(wordItem);
+                if (word) {
+                    this.filterByWord(word, wordItem);
+                }
+            }
+            
+            // Handle mini word cloud clicks
+            if (e.target.closest('.mini-word-item')) {
+                const wordItem = e.target.closest('.mini-word-item');
+                const word = wordItem.getAttribute('data-word') || this.extractWordFromElement(wordItem);
                 if (word) {
                     this.filterByWord(word, wordItem);
                 }
